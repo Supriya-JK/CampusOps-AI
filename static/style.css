@@ -152,3 +152,45 @@ footer { text-align: center; padding: 10px 0 24px; color: var(--muted); font-siz
 .pill { align-self: flex-start; }
 .form-footer .button { width: 100%; }
 }
+.task-details {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.task-details strong {
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.task-details small {
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.task-priority {
+    display: inline-block;
+    width: fit-content;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    letter-spacing: 0.4px;
+}
+
+.priority-high {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.priority-medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.priority-low {
+    background: #dcfce7;
+    color: #166534;
+}

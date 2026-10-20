@@ -3,11 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from pathlib import Path
-app.mount(
-    "/static",
-    StaticFiles(directory=BASE_DIR / "static"),
-    name="static"
-)
+
 BASE_DIR = Path(__file__).resolve().parent
 from agent import create_plan
 from executor import execute_plan
@@ -58,15 +54,16 @@ def health():
     }
 
 
+
 @app.post("/api/plan")
 def generate_plan(data: PlanRequest):
-    result = create_plan(data.request)
-
-    if not isinstance(result, dict) or not result.get("success"):
+    try:
+        result = create_plan(data.request)
+    except (ValueError, RuntimeError) as exc:
         raise HTTPException(
             status_code=502,
-            detail=result,
-        )
+            detail=str(exc),
+        ) from exc
 
     run_id = str(uuid4())
 
@@ -85,6 +82,7 @@ def generate_plan(data: PlanRequest):
         "message": "Review the plan before approving execution.",
         "plan": result,
     }
+
 
 
 @app.post("/api/approve/{run_id}")

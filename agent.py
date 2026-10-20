@@ -46,50 +46,58 @@ TOOL_DESCRIPTIONS = {
 # 2. AI PLANNER PROMPT
 # ==========================================
 
+
 PLANNER_PROMPT = """
-You are CampusOps AI, an AI assistant for college event operations.
+You are CampusOps AI, a college event planning assistant.
 
-Convert the user's request into a practical task plan.
+Your job is to convert the user's request into a practical task plan.
 
-Return ONLY valid JSON in this format:
+You MUST return a complete JSON object with exactly these top-level keys:
+- "goal": a non-empty string describing the user's goal
+- "tasks": an array containing 3 to 8 task objects
 
+Never return {}.
+Never return an empty tasks array.
+Do not explain your answer outside the JSON object.
+
+Every task must have this structure:
 {
-  "goal": "Organize a college event",
-  "tasks": [
-    {
-      "id": "T1",
-      "title": "Create event task",
-      "tool": "create_task",
-      "depends_on": [],
-      "priority": "high",
-      "inputs": {
-        "title": "Review event requirements",
-        "priority": "high",
-        "description": "Review the event requirements"
-      }
-    }
-  ]
+  "id": "T1",
+  "title": "Review event requirements",
+  "tool": "create_task",
+  "depends_on": [],
+  "priority": "high",
+  "inputs": {
+    "title": "Review event requirements",
+    "priority": "high",
+    "description": "Review the event requirements"
+  }
 }
 
+Available tools and their input requirements:
+- create_task: inputs requires title; optional priority and description
+- list_tasks: inputs must be {}
+- update_task_status: inputs requires task_id and status
+- verify_task: inputs requires task_id
+- get_weather: inputs requires numeric latitude and longitude
+
 Rules:
-- Generate 3 to 8 tasks.
-- Use only the registered tools provided.
-- Every task ID must be unique.
-- Dependencies must refer to existing task IDs.
-- Dependencies must not contain cycles.
+- Use only these registered tools.
+- Use unique task IDs such as T1, T2, T3.
+- Every dependency must refer to another task ID in this plan.
+- Do not create circular dependencies.
 - Priority must be high, medium, or low.
-- Every task must have an inputs object.
-- create_task requires title; priority and description are optional.
-- list_tasks requires an empty inputs object.
-- update_task_status requires task_id and status.
-- verify_task requires task_id.
-- get_weather requires numeric latitude and longitude.
-- Never invent weather results or claim that a tool ran.
-- Never invent coordinates.
-- Do not mark tasks completed merely because they were planned.
+- For update_task_status, status must be pending, in_progress, completed, or blocked.
+- Do not invent task IDs for existing tasks.
+- Do not invent coordinates or weather information.
+- Do not add a get_weather task unless the user provides a location and weather is relevant.
+- Do not mark a task completed just because it is planned.
 - Do not create tasks that send messages or make bookings.
-- Return JSON only, without Markdown code fences.
+- Return valid JSON only, without Markdown fences.
+
+Before returning, check that "goal" is non-empty and "tasks" contains at least 3 task objects.
 """
+
 
 
 # ==========================================
@@ -127,9 +135,10 @@ def create_plan(user_request: str) -> dict:
                 ),
             },
         ],
-        "options": {
-            "temperature": 0,
-        },
+       "options": {
+    "temperature": 0,
+    "num_predict": 1200,
+},
     }
 
     print("Connecting to Ollama...", flush=True)
@@ -145,8 +154,15 @@ def create_plan(user_request: str) -> dict:
 
         result = response.json()
         content = result["message"]["content"]
-        plan = json.loads(content)
 
+        print("\n--- RAW OLLAMA RESPONSE ---", flush=True)
+        print(content, flush=True)
+        print("--- END RAW RESPONSE ---\n", flush=True)
+
+        plan = json.loads(content)
+        print("Generated plan:", json.dumps(plan, indent=2), flush=True)
+        print("Validating generated plan...", flush=True)
+       
     except requests.Timeout as exc:
         raise RuntimeError(
             "Ollama took too long to respond. Try again."
@@ -165,6 +181,8 @@ def create_plan(user_request: str) -> dict:
 
     return validate_plan(plan)
 
+
+    
 
 # ==========================================
 # 4. VALIDATE TOOL INPUTS
